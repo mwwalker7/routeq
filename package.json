@@ -1,0 +1,16 @@
+{
+  "name": "routeq",
+  "version": "0.1.0",
+  "description": "Query which route in a routing table matches a URL, one line of input at a time",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "routeq": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
