@@ -40,6 +40,12 @@ Build it (there's nothing to install — no third-party dependencies):
 tsc
 ```
 
+Run the tests (uses Node's built-in test runner, no extra tooling):
+
+```
+npm test
+```
+
 Then query a file of URLs:
 
 ```
