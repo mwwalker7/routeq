@@ -24,10 +24,15 @@ A JSON array of `{ "name": ..., "pattern": ... }` objects. Patterns use
 slashes included". Routes are tried in order and the first match wins, same
 as in Express or similar frameworks.
 
+A param can be constrained to a regex with `:name(pattern)`, e.g. `:id(\d+)`
+to only match digits. This lets you put a numeric route ahead of a catch-all
+one and have both live in the same table:
+
 ```json
 [
-  { "name": "user-profile", "pattern": "/users/:id" },
-  { "name": "user-posts", "pattern": "/users/:id/posts/:postId" },
+  { "name": "user-profile", "pattern": "/users/:id(\\d+)" },
+  { "name": "user-posts", "pattern": "/users/:id(\\d+)/posts/:postId" },
+  { "name": "user-slug", "pattern": "/users/:slug" },
   { "name": "static-asset", "pattern": "/static/*" }
 ]
 ```

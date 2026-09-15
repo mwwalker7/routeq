@@ -22,6 +22,43 @@ test("compileRoute throws on an empty parameter name", () => {
   assert.throws(() => compileRoute({ name: "bad", pattern: "/users/:" }));
 });
 
+test("compileRoute applies a regex constraint to a param", () => {
+  const route = compileRoute({ name: "user", pattern: "/users/:id(\\d+)" });
+  assert.deepEqual(route.paramNames, ["id"]);
+  assert.ok(route.regex.test("/users/42"));
+  assert.ok(!route.regex.test("/users/abc"));
+});
+
+test("compileRoute picks the first route whose constraint matches", () => {
+  const router = new Router([
+    { name: "numeric", pattern: "/items/:id(\\d+)" },
+    { name: "slug", pattern: "/items/:id" },
+  ]);
+  assert.equal(router.match("/items/42")?.name, "numeric");
+  assert.equal(router.match("/items/latest")?.name, "slug");
+});
+
+test("compileRoute keeps capture groups inside a constraint from shifting param indices", () => {
+  const route = compileRoute({ name: "post", pattern: "/posts/:id((foo|bar)\\d+)/:slug" });
+  assert.deepEqual(route.paramNames, ["id", "slug"]);
+  const m = route.regex.exec("/posts/foo7/hello");
+  assert.ok(m);
+  assert.equal(m?.[1], "foo7");
+  assert.equal(m?.[2], "hello");
+});
+
+test("compileRoute throws on an unterminated regex constraint", () => {
+  assert.throws(() => compileRoute({ name: "bad", pattern: "/users/:id(\\d+" }));
+});
+
+test("compileRoute throws on an empty regex constraint", () => {
+  assert.throws(() => compileRoute({ name: "bad", pattern: "/users/:id()" }));
+});
+
+test("compileRoute throws on an invalid regex constraint", () => {
+  assert.throws(() => compileRoute({ name: "bad", pattern: "/users/:id(*)" }));
+});
+
 test("compileRoute names multiple wildcards distinctly", () => {
   const route = compileRoute({ name: "mixed", pattern: "/*/static/*" });
   assert.deepEqual(route.paramNames, ["wildcard0", "wildcard1"]);

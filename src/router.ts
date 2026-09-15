@@ -16,8 +16,50 @@ export interface MatchResult {
   params: Record<string, string>;
 }
 
-// Express-style patterns: ":name" captures a single path segment, "*" captures
-// the rest (including slashes). Everything else is matched literally.
+// Finds the index of the ")" that closes the "(" at openIndex, accounting for
+// nesting and backslash-escaped parens. Returns -1 if it's never closed.
+function findMatchingParen(pattern: string, openIndex: number): number {
+  let depth = 0;
+  for (let k = openIndex; k < pattern.length; k++) {
+    const c = pattern[k];
+    if (c === "\\") {
+      k++;
+      continue;
+    }
+    if (c === "(") depth++;
+    else if (c === ")") {
+      depth--;
+      if (depth === 0) return k;
+    }
+  }
+  return -1;
+}
+
+// A regex constraint can contain its own groups, e.g. :id((foo|bar)\d+). Those
+// would shift the capture indices we rely on to line up with paramNames, so
+// every "(" that isn't already a non-capturing or named marker gets rewritten
+// to "(?:". Only the group we wrap the whole constraint in stays capturing.
+function toNonCapturing(body: string): string {
+  let result = "";
+  for (let i = 0; i < body.length; i++) {
+    const c = body[i];
+    if (c === "\\") {
+      result += c + (body[i + 1] ?? "");
+      i++;
+      continue;
+    }
+    if (c === "(" && body[i + 1] !== "?") {
+      result += "(?:";
+      continue;
+    }
+    result += c;
+  }
+  return result;
+}
+
+// Express-style patterns: ":name" captures a single path segment, ":name(re)"
+// constrains that segment to the given regex, "*" captures the rest
+// (including slashes). Everything else is matched literally.
 export function compileRoute(def: RouteDefinition): CompiledRoute {
   const pattern = def.pattern;
   const paramNames: string[] = [];
@@ -34,8 +76,30 @@ export function compileRoute(def: RouteDefinition): CompiledRoute {
         throw new Error(`empty parameter name in pattern "${pattern}" at index ${i}`);
       }
       paramNames.push(name);
-      regexSource += "([^/]+)";
-      i = j - 1;
+
+      let constraint = "[^/]+";
+      let end = j;
+      if (pattern[j] === "(") {
+        const close = findMatchingParen(pattern, j);
+        if (close === -1) {
+          throw new Error(`unterminated regex constraint in pattern "${pattern}" at index ${j}`);
+        }
+        const body = pattern.slice(j + 1, close);
+        if (!body) {
+          throw new Error(`empty regex constraint in pattern "${pattern}" at index ${j}`);
+        }
+        try {
+          new RegExp(body);
+        } catch (err) {
+          const reason = err instanceof Error ? err.message : String(err);
+          throw new Error(`invalid regex constraint in pattern "${pattern}" at index ${j}: ${reason}`);
+        }
+        constraint = toNonCapturing(body);
+        end = close + 1;
+      }
+
+      regexSource += `(${constraint})`;
+      i = end - 1;
     } else if (ch === "*") {
       const wildcardName = `wildcard${paramNames.filter((n) => n.startsWith("wildcard")).length}`;
       paramNames.push(wildcardName);
