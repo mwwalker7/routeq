@@ -74,6 +74,13 @@ Each input line produces one JSON line of output:
 Query strings and fragments (`?...`, `#...`) are stripped before matching,
 since they're not part of the route path.
 
+Pass `--unmatched-only` to print just the URLs that didn't match anything,
+useful for finding gaps in a route table against a real access log:
+
+```
+node dist/cli.js --unmatched-only routes.json urls.txt
+```
+
 ## Library use
 
 The matching logic is also usable directly, without the CLI:

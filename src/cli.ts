@@ -13,10 +13,13 @@ function loadRoutes(path: string): RouteDefinition[] {
 }
 
 async function run(): Promise<void> {
-  const [, , routesPath, urlsPath] = process.argv;
+  const args = process.argv.slice(2);
+  const unmatchedOnly = args.includes("--unmatched-only");
+  const positionals = args.filter((a) => a !== "--unmatched-only");
+  const [routesPath, urlsPath] = positionals;
 
   if (!routesPath) {
-    process.stderr.write("usage: routeq <routes.json> [urls-file]\n");
+    process.stderr.write("usage: routeq [--unmatched-only] <routes.json> [urls-file]\n");
     process.stderr.write("  urls are read from urls-file if given, otherwise from stdin\n");
     process.exitCode = 1;
     return;
@@ -34,6 +37,8 @@ async function run(): Promise<void> {
     if (!url) continue;
 
     const result = router.match(url);
+    if (unmatchedOnly && result) continue;
+
     const record = result
       ? { url, matched: true, route: result.name, params: result.params }
       : { url, matched: false };
